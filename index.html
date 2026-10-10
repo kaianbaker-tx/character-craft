@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Character Craft</title>
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: #0e0d16; color: #f2f0ff; overflow: hidden;
+    font: 16px/1.5 system-ui, -apple-system, "Helvetica Neue", sans-serif;
+    display: flex; align-items: center; justify-content: center;
+    height: 100vh;
+  }
+  canvas { display: block; max-width: 100vw; max-height: 100vh; image-rendering: pixelated; }
+  #overlay {
+    position: fixed; inset: 0; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; text-align: center;
+    background: rgba(14,13,22,.86); padding: 24px;
+  }
+  #overlay.hidden { display: none; }
+  h1 { font-size: clamp(38px, 9vw, 76px); letter-spacing: -.02em; color: #ffd166; }
+  p.tag { color: #9a94b8; margin: 6px 0 26px; font-size: 18px; }
+  .keys { color: #7d76a0; font-size: 15px; margin-top: 22px; line-height: 1.9; }
+  .keys b { color: #f2f0ff; font-weight: 600; }
+  .go { color: #6ee7a8; font-weight: 700; letter-spacing: .08em; font-size: 20px; }
+</style>
+</head>
+<body>
+<canvas id="c" width="960" height="600"></canvas>
+
+<div id="overlay">
+  <h1>Character Craft</h1>
+  <p class="tag">A game by Kaian</p>
+  <div class="go">PRESS ENTER TO START</div>
+  <div class="keys">
+    <b>&larr; &rarr;</b> move &nbsp;&middot;&nbsp; <b>Space</b> jump &nbsp;&middot;&nbsp; <b>R</b> restart
+  </div>
+</div>
+
+<script>
+// ───────────────────────────────────────────── the parts every game needs
+const canvas  = document.getElementById('c');
+const ctx     = canvas.getContext('2d');
+const overlay = document.getElementById('overlay');
+
+// Which screen are we on? Every game has these three.
+let state = 'title';            // 'title' | 'playing' | 'over'
+
+// Everything the game needs to remember while you play lives in here.
+// Putting it all in one place means restarting is one line: reset().
+let game = {};
+
+function reset() {
+  game = {
+    x: 120,
+    y: 400,
+    vy: 0,
+    onGround: true,
+    score: 0,
+  };
+}
+
+// ───────────────────────────────────────────── keys
+// Held keys go in `keys`. One-off presses are handled in the listener.
+const keys = {};
+addEventListener('keydown', e => {
+  keys[e.code] = true;
+  if (e.code === 'Enter' && state !== 'playing') start();
+  if (e.code === 'KeyR') start();
+  if ([' ', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(e.key)) e.preventDefault();
+});
+addEventListener('keyup', e => { keys[e.code] = false; });
+
+function start() {
+  reset();
+  state = 'playing';
+  overlay.classList.add('hidden');
+}
+
+// ───────────────────────────────────────────── one step of the game
+// update() decides what happens. draw() decides what it looks like.
+// Keeping them apart is what stops a game turning into spaghetti.
+function update(dt) {
+  if (state !== 'playing') return;
+
+  const speed = 320;
+  if (keys['ArrowLeft'])  game.x -= speed * dt;
+  if (keys['ArrowRight']) game.x += speed * dt;
+
+  if (keys['Space'] && game.onGround) { game.vy = -520; game.onGround = false; }
+
+  game.vy += 1500 * dt;          // gravity
+  game.y  += game.vy  * dt;
+
+  const floor = canvas.height - 90;
+  if (game.y > floor) { game.y = floor; game.vy = 0; game.onGround = true; }
+
+  game.x = Math.max(20, Math.min(canvas.width - 20, game.x));
+}
+
+function draw() {
+  ctx.fillStyle = '#141225';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  // ground
+  ctx.fillStyle = '#2b2745';
+  ctx.fillRect(0, canvas.height - 60, canvas.width, 60);
+
+  // you
+  ctx.fillStyle = '#ffd166';
+  ctx.fillRect(game.x - 18, game.y - 36, 36, 36);
+
+  ctx.fillStyle = '#f2f0ff';
+  ctx.font = '600 20px system-ui, sans-serif';
+  ctx.fillText('Score ' + game.score, 20, 36);
+}
+
+// ───────────────────────────────────────────── the loop
+// dt is how long the last frame took, in seconds. Multiplying movement by dt
+// is what makes the game run the same speed on a fast and a slow computer.
+let last = performance.now();
+function frame(now) {
+  const dt = Math.min((now - last) / 1000, 0.05);
+  last = now;
+  update(dt);
+  draw();
+  requestAnimationFrame(frame);
+}
+
+reset();
+draw();
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>
